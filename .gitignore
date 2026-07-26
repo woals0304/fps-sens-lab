@@ -1,0 +1,27 @@
+node_modules/
+dist/
+
+# Local browser and QA artifacts
+.playwright-cli/
+output/playwright/
+artifacts/
+dev-server.log
+dev-server.err.log
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Optional Python artifacts
+__pycache__/
+*.py[cod]
+*.pt
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

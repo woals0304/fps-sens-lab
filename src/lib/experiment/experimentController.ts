@@ -1000,7 +1000,7 @@ function buildNextStageTransition(input: {
           currentState,
           [],
           nextValidationResult.passed === null
-            ? '최종 확인의 차이가 작아 추천값을 유지하고 판단을 보류했습니다.'
+            ? nextValidationResult.decisionReason[0] ?? '최종 확인 근거가 부족해 판단을 보류했습니다.'
             : nextValidationResult.passed
               ? '최종 확인까지 통과해 추천 감도를 확정했습니다.'
               : '최종 확인 결과를 반영해 추천 감도를 조정했습니다.',

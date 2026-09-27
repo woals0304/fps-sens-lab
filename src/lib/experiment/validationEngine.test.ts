@@ -24,6 +24,20 @@ function createSummary(sensitivity: number, score: number): SensitivityLabSummar
 }
 
 describe('validationEngine', () => {
+  it.each([
+    [createSummary(2.4, 80)],
+    [createSummary(2.42, 90), createSummary(2.44, 85)],
+    [createSummary(2.4, 80), createSummary(2.4, 82)],
+  ])('기준 후보와 서로 다른 비교 후보가 없으면 판단을 보류한다: %j', (...runs) => {
+    const result = evaluateValidationResult({
+      baselineSensitivity: 2.4,
+      validationRuns: runs,
+    });
+    expect(result.passed).toBeNull();
+    expect(result.finalSensitivity).toBe(2.4);
+    expect(result.validatedAt).toBeNull();
+  });
+
   it('최종 확인 후보를 추천 감도 주변 2자리 간격으로 만든다', () => {
     const candidates = getValidationCandidateSensitivities(
       {

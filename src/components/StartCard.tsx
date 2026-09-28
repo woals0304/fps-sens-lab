@@ -1,6 +1,6 @@
 import { buildQuickStartSettings } from '../lib/utils/guidedFlow';
 import { MAX_ALLOWED_SENSITIVITY, MIN_ALLOWED_SENSITIVITY } from '../lib/constants/appConstants';
-import { toNumber } from '../lib/utils/numberUtils';
+import { useId, useRef, useState } from 'react';
 import { formatSensitivity, normalizeSensitivity } from '../lib/utils/sensitivity';
 import type { AppSettings, StoredSession } from '../types/models';
 
@@ -11,15 +11,6 @@ interface StartCardProps {
   onStart: () => void;
   onOpenSettings: () => void;
   onOpenResults: () => void;
-}
-
-function isValidDraft(draft: AppSettings): boolean {
-  return (
-    draft.dpi >= 100 &&
-    draft.dpi <= 32000 &&
-    draft.currentSensitivity >= MIN_ALLOWED_SENSITIVITY &&
-    draft.currentSensitivity <= MAX_ALLOWED_SENSITIVITY
-  );
 }
 
 export function StartCard({
@@ -34,15 +25,18 @@ export function StartCard({
   const latestSensitivity =
     currentSession?.recommendation.finalSensitivity ?? currentSession?.recommendation.bestSensitivity ?? null;
 
-  function updateField<Key extends keyof AppSettings>(key: Key, value: AppSettings[Key]): void {
-    const normalizedValue =
-      typeof value === 'number' && key !== 'dpi' ? normalizeSensitivity(value) : value;
-
-    onDraftChange({
-      ...draft,
-      [key]: normalizedValue,
-    });
-  }
+  const id = useId();
+  const [dpiText, setDpiText] = useState(String(draft.dpi));
+  const [sensText, setSensText] = useState(formatSensitivity(draft.currentSensitivity));
+  const [submitted, setSubmitted] = useState(false);
+  const [touched, setTouched] = useState({ dpi: false, sensitivity: false });
+  const dpiInput = useRef<HTMLInputElement>(null);
+  const sensInput = useRef<HTMLInputElement>(null);
+  const dpiValid = /^\d+$/.test(dpiText) && Number(dpiText) >= 100 && Number(dpiText) <= 32000;
+  const sensValid = /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(sensText) &&
+    Number(sensText) >= MIN_ALLOWED_SENSITIVITY && Number(sensText) <= MAX_ALLOWED_SENSITIVITY;
+  const dpiError = !dpiValid && (submitted || touched.dpi);
+  const sensError = !sensValid && (submitted || touched.sensitivity);
 
   return (
     <section className="home-hero" aria-labelledby="home-title">
@@ -59,7 +53,15 @@ export function StartCard({
         </p>
       </div>
 
-      <div className="diagnostic-console" aria-label="감도 테스트 시작">
+      <form className="diagnostic-console" aria-label="감도 테스트 시작" noValidate onSubmit={(event) => {
+        event.preventDefault();
+        setSubmitted(true);
+        if (!dpiValid || !sensValid) {
+          (!dpiValid ? dpiInput : sensInput).current?.focus();
+          return;
+        }
+        onStart();
+      }}>
         <div className="console-header">
           <div>
             <span>빠른 진단</span>
@@ -75,44 +77,54 @@ export function StartCard({
           <label className="field input-tile">
             <span>마우스 DPI</span>
             <input
-              type="number"
-              min="100"
-              max="32000"
-              step="50"
-              value={draft.dpi}
-              onChange={(event) => updateField('dpi', toNumber(event.target.value, draft.dpi))}
+              ref={dpiInput}
+              type="text"
+              inputMode="numeric"
+              required
+              aria-describedby={`${id}-dpi-hint${dpiError ? ` ${id}-dpi-error` : ''}`}
+              aria-invalid={dpiError}
+              value={dpiText}
+              onBlur={() => setTouched((value) => ({ ...value, dpi: true }))}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDpiText(value);
+                if (/^\d+$/.test(value)) onDraftChange({ ...draft, dpi: Number(value) });
+              }}
             />
+            <small id={`${id}-dpi-hint`}>마우스 설정 프로그램에서 확인 · 100~32,000</small>
+            {dpiError && <small id={`${id}-dpi-error`} role="alert">DPI를 100~32,000 사이의 정수로 입력해 주세요.</small>}
           </label>
 
           <label className="field input-tile">
             <span>오버워치 감도</span>
             <input
-              type="number"
-              min={MIN_ALLOWED_SENSITIVITY}
-              max={MAX_ALLOWED_SENSITIVITY}
-              step="0.01"
-              value={formatSensitivity(draft.currentSensitivity)}
-              onChange={(event) =>
-                updateField('currentSensitivity', toNumber(event.target.value, draft.currentSensitivity))
-              }
+              ref={sensInput}
+              type="text"
+              inputMode="decimal"
+              required
+              aria-describedby={`${id}-sens-hint${sensError ? ` ${id}-sens-error` : ''}`}
+              aria-invalid={sensError}
+              value={sensText}
+              onBlur={() => setTouched((value) => ({ ...value, sensitivity: true }))}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSensText(value);
+                if (value.trim() && Number.isFinite(Number(value))) {
+                  onDraftChange({ ...draft, currentSensitivity: normalizeSensitivity(Number(value)) });
+                }
+              }}
             />
+            <small id={`${id}-sens-hint`}>게임에서 사용하는 기본 감도 · {MIN_ALLOWED_SENSITIVITY}~{MAX_ALLOWED_SENSITIVITY}</small>
+            {sensError && <small id={`${id}-sens-error`} role="alert">감도를 {MIN_ALLOWED_SENSITIVITY}~{MAX_ALLOWED_SENSITIVITY} 사이의 숫자로 입력해 주세요.</small>}
           </label>
         </div>
 
         <button
-          type="button"
+          type="submit"
           className="primary-button large-button hero-start-button"
-          onClick={onStart}
-          disabled={!isValidDraft(draft)}
         >
           테스트 시작
         </button>
-
-        {!isValidDraft(draft) ? (
-          <p className="inline-alert" role="alert">
-            DPI는 100~32,000, 오버워치 감도는 {MIN_ALLOWED_SENSITIVITY}~{MAX_ALLOWED_SENSITIVITY} 사이로 입력해 주세요.
-          </p>
-        ) : null}
 
         <div className="console-footer">
           <button type="button" className="text-button" onClick={onOpenSettings}>
@@ -123,12 +135,12 @@ export function StartCard({
 
         {currentSession ? (
           <button type="button" className="resume-strip" onClick={onOpenResults}>
-            <span>최근 추천 감도</span>
-            <strong>{formatSensitivity(latestSensitivity)}</strong>
+            <span>{latestSensitivity === null ? '진행 중인 테스트' : '최근 추천 감도'}</span>
+            <strong>{latestSensitivity === null ? '기록 확인' : formatSensitivity(latestSensitivity)}</strong>
             <small>결과 열기</small>
           </button>
         ) : null}
-      </div>
+      </form>
     </section>
   );
 }

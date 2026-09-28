@@ -38,6 +38,29 @@ describe('validationEngine', () => {
     expect(result.validatedAt).toBeNull();
   });
 
+  it.each([0, 1, -1])('작은 차이 %s점은 최적값 확정 근거로 쓰지 않는다', (gap) => {
+    const baseline = createSummary(2.4, 80);
+    baseline.interpretationTags = ['too_fast'];
+    const result = evaluateValidationResult({
+      baselineSensitivity: 2.4,
+      validationRuns: [baseline, createSummary(2.42, 80 + gap)],
+    });
+    expect(result.passed).toBeNull();
+    expect(result.finalSensitivity).toBe(2.4);
+    expect(result.validatedAt).toBeNull();
+  });
+
+  it.each([[80, 85, false, 2.42], [85, 80, true, 2.4]])(
+    '분명한 점수 차이는 기존 내부 판정 기준으로 처리한다', (base, other, passed, final) => {
+      const result = evaluateValidationResult({
+        baselineSensitivity: 2.4,
+        validationRuns: [createSummary(2.4, base as number), createSummary(2.42, other as number)],
+      });
+      expect(result.passed).toBe(passed);
+      expect(result.finalSensitivity).toBe(final);
+    },
+  );
+
   it('최종 확인 후보를 추천 감도 주변 2자리 간격으로 만든다', () => {
     const candidates = getValidationCandidateSensitivities(
       {

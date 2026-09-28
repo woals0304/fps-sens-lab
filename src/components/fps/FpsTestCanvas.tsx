@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import { POINTER_LOCK_RETRY_MESSAGE } from '../../lib/constants/appConstants';
+import { createFocusLossGuard } from '../../lib/fps/focusLossGuard';
 import { getAimSnapshot } from '../../lib/fps/aimSnapshot';
 import { CameraController } from '../../lib/fps/cameraController';
 import { FlickTestManager } from '../../lib/fps/flickTestManager';
@@ -326,14 +327,18 @@ export const FpsTestCanvas = forwardRef<FpsTestCanvasHandle, FpsTestCanvasProps>
       );
     };
 
+    const focusLossGuard = createFocusLossGuard(
+      () => document.hasFocus(),
+      () => {
+        if (!runningRef.current || !isPointerLocked(canvas)) return;
+        pauseForPointerLoss('다른 창으로 이동해 이번 측정을 멈췄습니다. 돌아와 시작 버튼을 누르면 이 단계만 다시 측정합니다.');
+        exitFpsPointerLock();
+      },
+    );
     const handleWindowBlur = (): void => {
-      if (!pointerLockedRef.current) {
-        return;
-      }
-
-      pauseForPointerLoss('브라우저 포커스가 바뀌어 현재 측정을 중단했습니다. 시작 버튼으로 다시 측정해 주세요.');
-      exitFpsPointerLock();
+      if (runningRef.current && isPointerLocked(canvas)) focusLossGuard.check();
     };
+    const handleWindowFocus = (): void => focusLossGuard.cancel();
 
     const handleVisibilityChange = (): void => {
       if (document.visibilityState !== 'hidden') {
@@ -402,6 +407,7 @@ export const FpsTestCanvas = forwardRef<FpsTestCanvasHandle, FpsTestCanvasProps>
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('pointerlockchange', handlePointerLockChange);
     document.addEventListener('pointerlockerror', handlePointerLockError);
@@ -517,6 +523,8 @@ export const FpsTestCanvas = forwardRef<FpsTestCanvasHandle, FpsTestCanvasProps>
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      focusLossGuard.cancel();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('pointerlockchange', handlePointerLockChange);
       document.removeEventListener('pointerlockerror', handlePointerLockError);

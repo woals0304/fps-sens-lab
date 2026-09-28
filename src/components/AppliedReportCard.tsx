@@ -7,16 +7,9 @@ interface AppliedReportCardProps {
   session: StoredSession;
 }
 
-function getBestSummary(session: StoredSession, sensitivity: number): SensitivityLabSummary | null {
+function getMeasuredSummary(session: StoredSession, sensitivity: number): SensitivityLabSummary | null {
   return (
     session.labSummaries.find((summary) => Math.abs(summary.sensitivity - sensitivity) < 0.001) ??
-    [...session.labSummaries]
-      .filter((summary) => summary.combinedWeightedScore !== null || summary.autoWeightedScore !== null)
-      .sort(
-        (left, right) =>
-          (right.combinedWeightedScore ?? right.autoWeightedScore ?? 0) -
-          (left.combinedWeightedScore ?? left.autoWeightedScore ?? 0),
-      )[0] ??
     null
   );
 }
@@ -36,7 +29,7 @@ export function AppliedReportCard({ session }: AppliedReportCardProps): JSX.Elem
     currentSensitivity > 0 ? ((finalSensitivity - currentSensitivity) / currentSensitivity) * 100 : 0;
   const currentCm360 = calculateOverwatchCm360(session.settings.dpi, currentSensitivity);
   const finalCm360 = calculateOverwatchCm360(session.settings.dpi, finalSensitivity);
-  const bestSummary = getBestSummary(session, finalSensitivity);
+  const bestSummary = getMeasuredSummary(session, finalSensitivity);
   const validationStatus =
     session.recommendation.validationPassed === true
       ? '최종 확인 완료'
@@ -56,7 +49,7 @@ export function AppliedReportCard({ session }: AppliedReportCardProps): JSX.Elem
     `DPI: ${session.settings.dpi}`,
     `360도 회전 거리: ${formatCm360(finalCm360)}`,
     `현재 감도 대비: ${changeText}`,
-    `신뢰 상태: ${validationStatus}`,
+    `이번 측정의 판정: ${validationStatus}`,
     `측정 점수: ${scoreText}`,
     '',
     '적용 순서',
@@ -83,7 +76,7 @@ export function AppliedReportCard({ session }: AppliedReportCardProps): JSX.Elem
       <div className="applied-report-header">
         <div>
           <p className="eyebrow">실전 적용 리포트</p>
-          <h2>바꿀지 유지할지, 이유까지 챙겼습니다</h2>
+          <h2>오버워치에서 확인할 감도 후보</h2>
           <p className="muted-text">
             결과 숫자와 함께, 같은 조건에서 다음 플레이를 검증할 수 있게 정리했습니다.
           </p>
@@ -105,12 +98,29 @@ export function AppliedReportCard({ session }: AppliedReportCardProps): JSX.Elem
           </small>
         </div>
         <div className="report-stat">
-          <span>신뢰 상태</span>
+          <span>이번 측정의 판정</span>
           <strong>{validationStatus}</strong>
           <small>{scoreText}</small>
         </div>
       </div>
 
+      <p className="muted-text section-space">
+        브라우저 과제에서 찾은 후보이며 오버워치 실전 성능은 아직 확인하지 않았습니다.
+        점수는 자체 계산값으로, 성공 확률이나 통계적 신뢰도를 뜻하지 않습니다.
+      </p>
+      {session.validationResult?.decisionReason.map((reason) => (
+        <p className="muted-text" key={reason}>{reason}</p>
+      ))}
+      <details>
+        <summary>추천 방법과 연구 근거</summary>
+        <p className="muted-text section-space">
+          감도에 따른 속도와 정밀도의 균형을 순간 조준·추적·회전으로 나누어 비교합니다.
+          논문에서 얻은 집단 평균을 개인의 정답으로 사용하지 않습니다.
+          영웅별 최적값, 조준경 배율과 실전 승률은 이 시험으로 검증하지 않습니다.
+        </p>
+        <a href="https://research.nvidia.com/publication/2023-07_mouse-sensitivity-first-person-targeting-tasks">감도와 속도·정밀도 연구 (2023)</a>
+        <p><a href="https://doi.org/10.3389/fnhum.2022.979293">과제별 조준 성능 연구 (2022)</a></p>
+      </details>
       <div className="report-checklist">
         <div className="report-check-item">
           <span className="report-step-number">01</span>

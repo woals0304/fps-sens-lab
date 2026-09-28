@@ -1,5 +1,4 @@
 import {
-  VALIDATION_SCORE_KEEP_THRESHOLD,
   VALIDATION_SCORE_SWITCH_THRESHOLD,
 } from '../constants/appConstants';
 import {
@@ -91,11 +90,6 @@ export function evaluateValidationResult(input: {
   const baselineScore = baseline ? getSummaryScore(baseline) : -Infinity;
   const winnerScore = getSummaryScore(winner);
   const scoreGap = winnerScore - baselineScore;
-  const stableBaseline =
-    baseline !== null &&
-    !baseline.interpretationTags.includes('too_fast') &&
-    !baseline.interpretationTags.includes('too_slow');
-
   let passed: boolean | null = true;
   let finalSensitivity = baselineSensitivity;
   const decisionReason: string[] = [];
@@ -106,7 +100,8 @@ export function evaluateValidationResult(input: {
     decisionReason.push(
       `${formatSensitivity(winner.sensitivity)} 감도가 최종 확인에서 ${scoreGap.toFixed(1)}점 더 높아 최종 추천을 조정했습니다.`,
     );
-  } else if (winner.sensitivity === baselineSensitivity || scoreGap <= VALIDATION_SCORE_KEEP_THRESHOLD) {
+  } else if (winner.sensitivity === baselineSensitivity && second &&
+    winnerScore - getSummaryScore(second) >= VALIDATION_SCORE_SWITCH_THRESHOLD) {
     passed = true;
     finalSensitivity = baselineSensitivity;
     decisionReason.push(
@@ -116,15 +111,7 @@ export function evaluateValidationResult(input: {
     passed = null;
     finalSensitivity = baselineSensitivity;
     decisionReason.push(
-      `후보 간 점수 차이가 ${scoreGap.toFixed(1)}점으로 확정 기준에 못 미쳐 추천값을 유지하고 판단을 보류했습니다.`,
-    );
-  }
-
-  if (!stableBaseline && winner.sensitivity !== baselineSensitivity) {
-    passed = false;
-    finalSensitivity = winner.sensitivity;
-    decisionReason.push(
-      `${formatSensitivity(baselineSensitivity)} 감도는 빠르거나 느린 경향이 남아 있어 검증 결과에 따라 조정했습니다.`,
+      `후보 간 차이가 내부 판정 기준에 못 미쳐 추천값을 유지하고 판단을 보류했습니다. 작은 점수 차이는 최적 감도의 증거가 아닙니다.`,
     );
   }
 
@@ -143,6 +130,6 @@ export function evaluateValidationResult(input: {
     passed,
     finalSensitivity,
     decisionReason,
-    validatedAt: new Date().toISOString(),
+    validatedAt: passed === null ? null : new Date().toISOString(),
   };
 }

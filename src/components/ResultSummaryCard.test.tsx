@@ -42,7 +42,8 @@ describe('ResultSummaryCard', () => {
 
     expect(container.textContent).toContain('안정 범위는 이번 측정에서 확정하지 못했습니다.');
     expect(container.textContent).not.toContain('2.10~2.70 구간에서 가장 안정적인 결과');
-    expect(container.textContent).toContain('감도 2.40 복사');
+    expect(container.textContent).toContain('감도 2.30 복사');
+    expect(container.textContent).toContain('판단 보류');
 
     await act(async () => root.unmount());
     container.remove();

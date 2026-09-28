@@ -75,13 +75,14 @@ export function evaluateValidationResult(input: {
     interpretationTags: summary.interpretationTags,
   }));
 
-  if (!winner || baselineSensitivity === null) {
+  const distinctCandidates = new Set(ranked.map((summary) => summary.sensitivity));
+  if (!winner || baselineSensitivity === null || !baseline || distinctCandidates.size < 2) {
     return {
       baselineSensitivity,
       comparedSensitivities: ranked.map((summary) => summary.sensitivity),
       candidateResults,
       passed: null,
-      finalSensitivity: winner?.sensitivity ?? baselineSensitivity,
+      finalSensitivity: baselineSensitivity,
       decisionReason: ['최종 확인에 필요한 비교 결과가 아직 충분하지 않습니다.'],
       validatedAt: null,
     };

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
+import { AppliedReportCard } from '../components/AppliedReportCard';
 import { ExpandableDetailSection } from '../components/ExpandableDetailSection';
 import { ResultSummaryCard } from '../components/ResultSummaryCard';
 import type { AppSettings, StoredSession } from '../types/models';
@@ -60,6 +61,8 @@ export function ResultPage({
         onRetry={() => onRetry(retrySettings)}
         onToggleDetails={() => setDetailOpen((current) => !current)}
       />
+
+      <AppliedReportCard session={session} />
 
       <ExpandableDetailSection
         title="세부 결과 보기"

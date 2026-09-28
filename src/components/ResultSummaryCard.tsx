@@ -30,7 +30,7 @@ export function ResultSummaryCard({
   const confirmationLine =
     session.recommendation.validationPassed === null
       ? session.validationResult
-        ? `최종 확인의 차이가 작아 ${formatSensitivity(finalSensitivity)}을 유지하고 판단을 보류했습니다.`
+        ? session.validationResult.decisionReason[0] ?? '최종 확인 근거가 부족해 판단을 보류했습니다.'
         : session.recommendation.safeRange
         ? `${formatSensitivity(session.recommendation.safeRange.min)}~${formatSensitivity(session.recommendation.safeRange.max)} 구간을 함께 확인했습니다.`
         : '안정 범위는 근거가 더 필요해 이번 결과에서 확정하지 않았습니다.'
